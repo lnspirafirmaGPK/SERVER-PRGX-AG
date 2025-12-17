@@ -1,5 +1,3 @@
-This code repository (or "repo") is designed to Data storage best GitHub has to offer with the least amount of noise.
-
 ในการควบคุมการไหลเวียนของข้อมูลจาก Agent ย่อยผ่าน Nexus Gateway (PRGX-AG) สอดคล้องกับแนวคิดของ Model Context Protocol (MCP) ซึ่งทำหน้าที่เป็น Secure Intelligent Gateway
 
 การสร้างเซิร์ฟเวอร์ MCP ของตนเองจึงเป็นการแปลงบทบาทของ PRGX3 (The Diplomat) ให้เป็นโครงสร้างทางกายภาพที่สามารถบังคับใช้กฎ Patimokkha Code ได้จริง
