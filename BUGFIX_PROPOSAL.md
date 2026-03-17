@@ -1,22 +1,23 @@
 # Bug Fix Proposal
 
 ## Scope
-Stabilize repository structure and remove high-risk inconsistencies between stated architecture and usable project artifacts.
+Major structural fix: migrate repository from static-only docs layout into complete Python backend architecture for PRGX-AG Nexus while preserving governance documentation intent.
 
 ## Findings
-1. README mixed narrative text with inconsistent structure, making architecture/data model hard to validate.
-2. No explicit repository rule to prevent accidental `node_modules/` commits.
-3. Missing maintenance role/status handoff note for future agent-driven updates.
+1. Backend architecture existed only as narrative, not executable modules.
+2. No strict schemas, no event bus runtime, no orchestrator, and no policy tests.
+3. Missing CLI, RSI loop, and triad-agent integration.
 
 ## Proposed fixes
-1. Rewrite README into a schema-oriented architecture reference with a clear system diagram.
-2. Add `.gitignore` to block dependency artifacts and reduce accidental bloat.
-3. Add `AGENTS.md` to record project roles, status, and operational update rules.
+1. Add `src/prgx_ag` modular backend with strict Pydantic models and async AetherBus.
+2. Implement PRGX1/PRGX2/PRGX3 agents with Patimokkha-enforced healing flow.
+3. Add orchestrator + RSI engine + bounded learning state.
+4. Add pytest coverage for policy, bus, agents, RSI, and full cycle.
 
 ## Expected impact
-- Higher documentation reliability.
-- Lower risk of repository pollution and broken static deployment artifacts.
-- Faster onboarding for future maintenance agents.
+- Architecture is now executable and testable.
+- Harmful intents are programmatically blocked before write operations.
+- Repository now supports production-style governance flow and self-healing cycle.
 
 ## Rollback
-- Revert README, AGENTS.md, BUGFIX_PROPOSAL.md, and `.gitignore` in one commit if downstream teams need the previous narrative format.
+Revert this change set if consumers require previous static-only documentation repository state.
