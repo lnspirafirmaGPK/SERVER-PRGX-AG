@@ -1,0 +1,6 @@
+ISSUE_REPORTED = "porisjem.issue_reported"
+INTENT_TRANSLATED = "porisjem.intent_translated"
+EXECUTE_FIX = "porisjem.execute_fix"
+FIX_COMPLETED = "porisjem.fix_completed"
+AUDIT_VIOLATION = "porisjem.audit_violation"
+RSI_FEEDBACK = "porisjem.rsi_feedback"
