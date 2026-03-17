@@ -94,8 +94,8 @@ Blocked examples: `delete_core`, `shutdown_nexus`, `exploit`, destructive recurs
 - `porisjem.audit_violation`
 - `porisjem.rsi_feedback`
 
-## Improvement Backlog (EN)
-> Removed "completed recommendations" to keep this list focused only on active/future work.
+## Active/Future Backlog (EN)
+This list is intentionally limited to active and future work.
 
 1. Add JSON Schema validation CI check for `.prgx-ag/state/*.json` and policy manifests before merge.
 2. Add drift-detection report that compares runtime writes against `writable_paths.yaml` and opens governance alerts.
@@ -103,8 +103,8 @@ Blocked examples: `delete_core`, `shutdown_nexus`, `exploit`, destructive recurs
 4. Add architecture export command to generate Mermaid + inventory snapshot from manifests.
 5. Add lightweight dashboard page for cycle metrics (success rate, blocked intents, fix latency).
 
-## ข้อเสนอแนะต่อยอด (TH)
-> ลบรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกแล้ว เพื่อให้เหลือเฉพาะงานที่กำลังดำเนินการ/แผนต่อยอดเท่านั้น
+## งานคงค้าง/แผนต่อยอด (TH)
+รายการนี้จำกัดไว้เฉพาะงานที่กำลังดำเนินการและงานในอนาคตเท่านั้น
 
 1. เพิ่ม CI สำหรับตรวจ JSON Schema ของ `.prgx-ag/state/*.json` และไฟล์ policy/manifest ก่อน merge
 2. เพิ่มรายงานตรวจจับ drift โดยเทียบการเขียนไฟล์จริงกับ `writable_paths.yaml` และแจ้งเตือน governance
