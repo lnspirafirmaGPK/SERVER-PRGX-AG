@@ -31,3 +31,9 @@ Revert this change set if consumers require previous static-only documentation r
 - Fixed pytest execution bug by adding `pythonpath = ["src"]` in `pyproject.toml`, so test imports work without manual environment overrides.
 - Updated README system architecture into database/state-aligned ER diagram based on `.prgx-ag` data sources.
 - Removed completed-recommendation noise and replaced with forward-only EN/TH backlog proposals.
+
+## 2026-03-17 Triad hardening and architecture completion pass
+- Added explicit PRGX1 read-only scan methods for dependency, structure, and integrity drift observation.
+- Added integrity scanner + healing intent builder + finding/narrative schemas to complete Porisjem role boundaries.
+- Extended orchestrator with `PRGXAGNexus` naming, shutdown support, and compatibility alias.
+- Updated README with full Porisjem/AETHERIUM framing, refreshed architecture diagram context, and new EN/TH future backlog items.

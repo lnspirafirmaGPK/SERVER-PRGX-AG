@@ -26,6 +26,35 @@ class PRGX2Mechanic(BaseAgent):
         self.protected_paths = protected_paths
         self.dry_run = dry_run
 
+    async def update_dependency(self, path: str, content: str) -> ProcessingOutcome:
+        return apply_safe_fixes(
+            self.root,
+            fixes=[{'path': path, 'content': content}],
+            allowed_paths=self.allowed_paths,
+            protected_paths=self.protected_paths,
+            envelope_id='dependency-update',
+            dry_run=self.dry_run,
+        )
+
+    async def repair_structure(self, fixes: list[dict[str, str]], envelope_id: str) -> ProcessingOutcome:
+        return apply_safe_fixes(
+            self.root,
+            fixes=fixes,
+            allowed_paths=self.allowed_paths,
+            protected_paths=self.protected_paths,
+            envelope_id=envelope_id,
+            dry_run=self.dry_run,
+        )
+
+    async def cleanup(self, target: str) -> ProcessingOutcome:
+        return ProcessingOutcome(
+            agent_name=self.agent_id,
+            envelope_id='cleanup',
+            success=True,
+            execution_time=0.0,
+            message=f'Cleanup reviewed for {target}',
+        )
+
     async def apply_shadow_fix(self, target: str, fix_plan: dict[str, object]) -> ProcessingOutcome:
         intent = fix_plan['intent']
         assert isinstance(intent, Intent)
@@ -40,13 +69,6 @@ class PRGX2Mechanic(BaseAgent):
             return ProcessingOutcome(agent_name=self.agent_id, envelope_id=str(fix_plan.get('envelope_id', 'na')), success=False, execution_time=0.0, message=f'Rejected by Patimokkha: {audit.reason}', details={'target': target})
 
         start = perf_counter()
-        outcome = apply_safe_fixes(
-            self.root,
-            fixes=fix_plan.get('fixes', []),
-            allowed_paths=self.allowed_paths,
-            protected_paths=self.protected_paths,
-            envelope_id=str(fix_plan.get('envelope_id', 'na')),
-            dry_run=self.dry_run,
-        )
+        outcome = await self.repair_structure(fix_plan.get('fixes', []), str(fix_plan.get('envelope_id', 'na')))
         outcome.execution_time = perf_counter() - start
         return outcome

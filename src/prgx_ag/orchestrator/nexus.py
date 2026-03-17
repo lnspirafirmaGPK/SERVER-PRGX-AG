@@ -13,7 +13,7 @@ from prgx_ag.rsi import LearningState, RSIEngine
 from prgx_ag.rsi.gems import append_gem_log
 
 
-class PRGX_AG_Nexus:
+class PRGXAGNexus:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.repo_root = Path(settings.repo_root).resolve()
@@ -28,10 +28,14 @@ class PRGX_AG_Nexus:
         self.prgx3 = PRGX3Diplomat(agent_id='PRGX3', role='Diplomat', bus=self.bus)
         self.rsi_engine = RSIEngine()
         self.learning_state = LearningState()
+        self._running = False
 
-    async def wire_subscriptions(self) -> None:
+    async def wire_event_subscriptions(self) -> None:
         await self.prgx3.start()
         await self.bus.subscribe(EXECUTE_FIX, self._handle_execute_fix)
+
+    async def wire_subscriptions(self) -> None:  # backward compatibility
+        await self.wire_event_subscriptions()
 
     async def _handle_execute_fix(self, payload: dict[str, object]) -> None:
         findings = payload.get('findings', {})
@@ -51,11 +55,18 @@ class PRGX_AG_Nexus:
         return self.prgx1.scan_entropy()
 
     async def run_once(self) -> None:
-        await self.wire_subscriptions()
+        await self.wire_event_subscriptions()
         await self.run_self_healing_cycle()
 
     async def run_continuous(self, interval_seconds: int = 10) -> None:
-        await self.wire_subscriptions()
-        while True:
+        await self.wire_event_subscriptions()
+        self._running = True
+        while self._running:
             await self.run_self_healing_cycle()
             await asyncio.sleep(interval_seconds)
+
+    async def shutdown(self) -> None:
+        self._running = False
+
+
+PRGX_AG_Nexus = PRGXAGNexus
