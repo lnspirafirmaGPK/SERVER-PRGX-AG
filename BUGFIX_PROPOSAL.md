@@ -26,3 +26,8 @@ Revert this change set if consumers require previous static-only documentation r
 - Implemented full hybrid PRGX-AG architecture (.prgx-ag governance + GitHub workflows + Python runtime triad).
 - Added strict schemas, event-driven nexus wiring, safe fix executor guardrails, RSI bounded learning, and manifest/policy loaders.
 - Added deterministic pytest coverage for policy, bus, triad behavior, manifest loading, translation matrix, and full cycle flow.
+
+## 2026-03-17 Bug fix and documentation alignment
+- Fixed pytest execution bug by adding `pythonpath = ["src"]` in `pyproject.toml`, so test imports work without manual environment overrides.
+- Updated README system architecture into database/state-aligned ER diagram based on `.prgx-ag` data sources.
+- Removed completed-recommendation noise and replaced with forward-only EN/TH backlog proposals.

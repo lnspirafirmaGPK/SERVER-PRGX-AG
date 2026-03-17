@@ -5,21 +5,67 @@ PRGX-AG is a hybrid architecture where:
 - `.prgx-ag/` is the internal governance/manifest/state layer.
 - `src/prgx_ag/` is the executable Python 3.11+ self-healing engine.
 
-## System Architecture Diagram
+## System Architecture Diagram (Database-State Aligned)
 
 ```mermaid
-flowchart TD
-    GH[GitHub Actions\n(.github/workflows)] --> NX[PRGX-AG Nexus]
-    NX --> B[AetherBus Events]
-    B --> S1[PRGX1 Sentry\nRead-only scan]
-    B --> S3[PRGX3 Diplomat\nIntent translation]
-    S3 --> P[Patimokkha Governance]
-    P -->|Approved| S2[PRGX2 Mechanic\nSafe fix executor]
-    P -->|Rejected| AV[audit_violation]
-    S2 --> FC[fix_completed]
-    FC --> RSI[RSI Engine]
-    RSI --> ST[.prgx-ag/state\nlearning_state.json\ngem_log.json]
-    NX --> AUD[.prgx-ag/audit/audit_log.jsonl]
+erDiagram
+    NEXUS ||--o{ AUDIT_LOG : writes
+    NEXUS ||--|| PATIMOKKHA_POLICY : enforces
+    NEXUS ||--|| RULESET_POLICY : validates
+    NEXUS ||--|| TRANSLATION_MATRIX : maps_intent
+    NEXUS ||--|| EXPECTED_STRUCTURE : checks
+    NEXUS ||--|| CRITICAL_FILES : monitors
+    NEXUS ||--|| WRITABLE_PATHS : restricts_write
+    NEXUS ||--|| PROTECTED_PATHS : blocks_write
+    NEXUS ||--|| LEARNING_STATE : updates
+    NEXUS ||--o{ GEM_LOG : appends
+
+    AUDIT_LOG {
+      jsonl ts
+      string topic
+      string outcome
+      string actor
+    }
+    PATIMOKKHA_POLICY {
+      yaml version
+      array blocked_intents
+      array guardrails
+    }
+    RULESET_POLICY {
+      yaml version
+      array governance_rules
+    }
+    TRANSLATION_MATRIX {
+      yaml issue_type
+      string intent_type
+      string severity
+    }
+    EXPECTED_STRUCTURE {
+      yaml expected_paths
+      array required_dirs
+    }
+    CRITICAL_FILES {
+      yaml file_path
+      string integrity_mode
+    }
+    WRITABLE_PATHS {
+      yaml allowed_path
+      string reason
+    }
+    PROTECTED_PATHS {
+      yaml protected_path
+      string risk_level
+    }
+    LEARNING_STATE {
+      json cycle_count
+      json success_rate
+      json bounded_feedback
+    }
+    GEM_LOG {
+      json ts
+      json signal
+      json adaptation
+    }
 ```
 
 ## System Status (Data/State Structure)
@@ -47,6 +93,24 @@ Blocked examples: `delete_core`, `shutdown_nexus`, `exploit`, destructive recurs
 - `porisjem.fix_completed`
 - `porisjem.audit_violation`
 - `porisjem.rsi_feedback`
+
+## Improvement Backlog (EN)
+> Removed "completed recommendations" to keep this list focused only on active/future work.
+
+1. Add JSON Schema validation CI check for `.prgx-ag/state/*.json` and policy manifests before merge.
+2. Add drift-detection report that compares runtime writes against `writable_paths.yaml` and opens governance alerts.
+3. Add policy simulation mode (`--simulate-policy`) for PRGX3 intent review without execution.
+4. Add architecture export command to generate Mermaid + inventory snapshot from manifests.
+5. Add lightweight dashboard page for cycle metrics (success rate, blocked intents, fix latency).
+
+## ข้อเสนอแนะต่อยอด (TH)
+> ลบรายการ “ข้อเสนอแนะที่ทำเสร็จแล้ว” ออกแล้ว เพื่อให้เหลือเฉพาะงานที่กำลังดำเนินการ/แผนต่อยอดเท่านั้น
+
+1. เพิ่ม CI สำหรับตรวจ JSON Schema ของ `.prgx-ag/state/*.json` และไฟล์ policy/manifest ก่อน merge
+2. เพิ่มรายงานตรวจจับ drift โดยเทียบการเขียนไฟล์จริงกับ `writable_paths.yaml` และแจ้งเตือน governance
+3. เพิ่มโหมดจำลองนโยบาย (`--simulate-policy`) เพื่อให้ PRGX3 ตรวจ intent ได้โดยไม่สั่งแก้จริง
+4. เพิ่มคำสั่ง export สถาปัตยกรรม (Mermaid + inventory) จาก manifest อัตโนมัติ
+5. เพิ่มหน้า dashboard เบื้องต้นสำหรับ metric รอบการทำงาน เช่น success rate, blocked intents, fix latency
 
 ## Local Setup
 ```bash
