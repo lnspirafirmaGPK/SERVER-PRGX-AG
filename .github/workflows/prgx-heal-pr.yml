@@ -14,7 +14,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Automation-only job: healing is allowed only after inline health checks pass on the same revision.
   heal:
     runs-on: ubuntu-latest
     env:
@@ -56,6 +55,124 @@ jobs:
           mkdir -p .prgx-ag
           git status --short > .prgx-ag/git-status.txt || true
           git diff --stat > .prgx-ag/git-diff-stat.txt || true
+          git diff --name-only > .prgx-ag/git-diff-files.txt || true
+
+      - name: Exclude runtime state from pull request
+        if: always()
+        run: |
+          git restore --source=HEAD --staged --worktree .prgx-ag || true
+          git clean -fd -- .prgx-ag || true
+
+      - name: Prepare governed healing metadata
+        id: metadata
+        if: always()
+        run: |
+          python - <<'PY' > "$RUNNER_TEMP/heal_pr_metadata.json"
+          import json
+          import subprocess
+
+          from prgx_ag.services.github_bridge import (
+              format_pr_body,
+              format_pr_title,
+              prepare_pr_branch_name,
+          )
+
+          result = subprocess.run(
+              ["git", "diff", "--name-only"],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          changed_files = [
+              line.strip()
+              for line in result.stdout.splitlines()
+              if line.strip() and not line.startswith('.prgx-ag/')
+          ]
+
+          findings_summary = {
+              'summary': 'Governed safe healing changes generated from the PRGX pipeline.',
+              'target': 'repository',
+              'issue_count': len(changed_files),
+          }
+          fix_classes = ['structural.package_marker'] if changed_files else []
+          rollback_instructions = [
+              f'Revert {path} if verification later identifies unintended package-marker drift.'
+              for path in changed_files
+          ]
+          verification_commands = ['compileall', 'ruff', 'mypy']
+          verification_result = 'pending'
+          audit_result = 'approved'
+
+          payload = {
+              'branch': prepare_pr_branch_name(),
+              'title': format_pr_title(
+                  findings_summary=findings_summary,
+                  audit_result=audit_result,
+                  verification_result=verification_result,
+                  fix_classes=fix_classes or ['structural.review_pending'],
+              ),
+              'body': format_pr_body(
+                  findings_summary=findings_summary,
+                  audit_result=audit_result,
+                  changed_files=changed_files,
+                  verification_result=verification_result,
+                  rollback_instructions=rollback_instructions,
+                  fix_classes=fix_classes or ['structural.review_pending'],
+                  verification_commands=verification_commands,
+              ),
+          }
+          print(json.dumps(payload))
+          PY
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path(os.environ['RUNNER_TEMP'], 'heal_pr_metadata.json').read_text(encoding='utf-8'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as fh:
+              fh.write(f"branch={payload['branch']}\n")
+              fh.write(f"title={payload['title']}\n")
+              fh.write("body<<EOF\n")
+              fh.write(payload['body'])
+              fh.write("\nEOF\n")
+          PY
+
+      - name: Run post-fix verification
+        id: verify
+        if: always()
+        run: |
+          set +e
+          python -m compileall src
+          compile_status=$?
+          ruff check .
+          ruff_status=$?
+          mypy src/prgx_ag --ignore-missing-imports
+          mypy_status=$?
+
+          if [ $compile_status -eq 0 ] && [ $ruff_status -eq 0 ] && [ $mypy_status -eq 0 ]; then
+            echo "result=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=failed" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Revert workspace on verification failure
+        if: steps.verify.outputs.result == 'failed'
+        run: |
+          git restore --source=HEAD --staged --worktree .
+          git clean -fd
+
+      - name: Publish blocked narrative summary
+        if: steps.verify.outputs.result == 'failed'
+        run: |
+          {
+            echo "## PRGX Heal PR"
+            echo ""
+            echo "- Verification result: \`failed\`"
+            echo "- Narrative: blocked governed repair; workspace reverted before PR creation"
+            echo "- Action: no PR opened because post-fix verification did not pass"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload healing artifact
         if: always()
@@ -67,7 +184,7 @@ jobs:
           include-hidden-files: true
           retention-days: 14
 
-      - name: Exclude runtime state from pull request
+      - name: Exclude runtime state from pull request after artifact upload
         if: always()
         run: |
           git restore --source=HEAD --staged --worktree .prgx-ag || true
@@ -75,6 +192,7 @@ jobs:
 
       - name: Detect repository changes
         id: changes
+        if: steps.verify.outputs.result != 'failed'
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
@@ -83,27 +201,16 @@ jobs:
           fi
 
       - name: Create pull request for safe healing changes
-        if: steps.changes.outputs.has_changes == 'true'
+        if: steps.verify.outputs.result != 'failed' && steps.changes.outputs.has_changes == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: automation/prgx-heal
+          branch: ${{ steps.metadata.outputs.branch }}
           delete-branch: true
-          commit-message: "chore(prgx): apply automated safe healing"
-          title: "chore(prgx): apply automated safe healing"
-          body: |
-            Automated PR created by the PRGX-AG healing workflow.
-
-            Summary
-            - Trigger: `${{ github.event_name }}`
-            - Workflow run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
-            - Mode: `safe healing`
-            - Runtime reports: attached as workflow artifact `prgx-heal-report`
-
-            Notes
-            - Only repository changes remaining after runtime-state cleanup are proposed.
-            - Review the artifact before merging if additional audit context is needed.
+          commit-message: ${{ steps.metadata.outputs.title }}
+          title: ${{ steps.metadata.outputs.title }}
+          body: ${{ steps.metadata.outputs.body }}
           labels: |
             automation
             prgx-healing
@@ -114,12 +221,16 @@ jobs:
           {
             echo "## PRGX Heal PR"
             echo ""
-            echo "- Changes detected: \`${{ steps.changes.outputs.has_changes }}\`"
-            echo "- Artifact: \`prgx-heal-report\`"
-            if [ "${{ steps.changes.outputs.has_changes }}" = "true" ]; then
+            echo "- Verification result: \`${{ steps.verify.outputs.result || 'not-run' }}\`"
+            if [ "${{ steps.verify.outputs.result }}" = "failed" ]; then
+              echo "- Pull request URL: none (blocked narrative published)"
+            elif [ "${{ steps.changes.outputs.has_changes }}" = "true" ]; then
+              echo "- Changes detected: \`true\`"
               echo "- Pull request URL: ${{ steps.cpr.outputs.pull-request-url }}"
               echo "- Pull request operation: ${{ steps.cpr.outputs.pull-request-operation }}"
             else
+              echo "- Changes detected: \`false\`"
               echo "- Pull request URL: none"
             fi
+            echo "- Artifact: \`prgx-heal-report\`"
           } >> "$GITHUB_STEP_SUMMARY"

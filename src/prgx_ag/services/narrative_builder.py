@@ -71,11 +71,14 @@ def _detected_for(outcome: ProcessingOutcome) -> str:
     target = _coerce_str(details.get("target"), default="repository")
     audit_reason = _coerce_str(details.get("audit_reason"), default="")
     fix_count = details.get("fix_count")
+    fix_classes = ",".join(_coerce_list_of_str(details.get("fix_classes"))) or "none"
 
     segments: list[str] = [f"Target={target}"]
 
     if isinstance(fix_count, int):
         segments.append(f"PlannedFixes={fix_count}")
+
+    segments.append(f"FixClasses={fix_classes}")
 
     if audit_reason and audit_reason != "n/a":
         segments.append(f"Audit={audit_reason}")
@@ -88,6 +91,7 @@ def _repaired_for(outcome: ProcessingOutcome) -> str:
     details = _details_of(outcome)
     changed = _coerce_list_of_str(details.get("changed"))
     dry_run = _coerce_bool(details.get("dry_run"), default=False)
+    verification_status = _coerce_str(details.get("verification_status"), default="not-run")
 
     if changed:
         changed_preview = ", ".join(changed[:5])
@@ -97,12 +101,12 @@ def _repaired_for(outcome: ProcessingOutcome) -> str:
         changed_preview = "none"
 
     if outcome.success and dry_run:
-        return f"Validated safe fix set without writing files. Changed={changed_preview}"
+        return f"Validated safe fix set without writing files. Changed={changed_preview} | Verification={verification_status}"
 
     if outcome.success:
-        return f"Applied safe fixes. Changed={changed_preview}"
+        return f"Applied safe fixes. Changed={changed_preview} | Verification={verification_status}"
 
-    return f"No repair applied. Changed={changed_preview}"
+    return f"No repair applied. Changed={changed_preview} | Verification={verification_status}"
 
 
 def _learned_for(outcome: ProcessingOutcome) -> str:
@@ -110,6 +114,7 @@ def _learned_for(outcome: ProcessingOutcome) -> str:
     payload_audit = details.get("payload_audit")
     audit_reason = _coerce_str(details.get("audit_reason"), default="")
     execution_time = f"{outcome.execution_time:.4f}s"
+    rollback_hints = _coerce_list_of_str(details.get("rollback_hints"))
 
     notes: list[str] = [f"ExecutionTime={execution_time}"]
 
@@ -118,6 +123,9 @@ def _learned_for(outcome: ProcessingOutcome) -> str:
 
     if isinstance(payload_audit, dict) and payload_audit:
         notes.append("PayloadAudit=present")
+
+    if rollback_hints:
+        notes.append(f"RollbackHints={len(rollback_hints)}")
 
     return " | ".join(notes)
 
@@ -162,11 +170,15 @@ def build_commit_style_narrative(outcome: ProcessingOutcome) -> str:
     target = _coerce_str(details.get("target"), default="repository")
     fix_count = details.get("fix_count")
     fix_count_text = str(fix_count) if isinstance(fix_count, int) else "n/a"
+    fix_classes = ",".join(_coerce_list_of_str(details.get("fix_classes"))) or "none"
+    verification_status = _coerce_str(details.get("verification_status"), default="not-run")
 
     return (
         f"{mode}: {outcome.message} | "
         f"target={target} | "
         f"fixes={fix_count_text} | "
+        f"fix_classes={fix_classes} | "
+        f"verification={verification_status} | "
         f"changed={changed_text} | "
         f"elapsed={outcome.execution_time:.4f}s | "
         f"envelope={outcome.envelope_id}"

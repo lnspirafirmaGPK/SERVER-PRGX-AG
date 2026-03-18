@@ -65,11 +65,11 @@ class PRGX2Mechanic(BaseAgent):
 
         return None
 
-    def _normalize_fixes(self, raw: object) -> list[dict[str, str]] | None:
+    def _normalize_fixes(self, raw: object) -> list[dict[str, object]] | None:
         if not isinstance(raw, list):
             return None
 
-        normalized: list[dict[str, str]] = []
+        normalized: list[dict[str, object]] = []
 
         for index, item in enumerate(raw):
             if not isinstance(item, dict):
@@ -85,12 +85,25 @@ class PRGX2Mechanic(BaseAgent):
             elif not isinstance(content, str):
                 content = str(content)
 
-            normalized.append(
-                {
-                    "path": path.strip(),
-                    "content": content,
-                }
-            )
+            metadata: dict[str, object] = {
+                "path": path.strip(),
+                "content": content,
+            }
+
+            for key in ("fix_class", "rationale", "rollback_hint", "source_issue"):
+                value = item.get(key)
+                if value is not None:
+                    metadata[key] = str(value)
+
+            verification_commands = item.get("verification_commands")
+            if isinstance(verification_commands, list):
+                metadata["verification_commands"] = [
+                    str(command).strip()
+                    for command in verification_commands
+                    if str(command).strip()
+                ]
+
+            normalized.append(metadata)
 
         return normalized
 
@@ -106,7 +119,7 @@ class PRGX2Mechanic(BaseAgent):
 
     async def repair_structure(
         self,
-        fixes: list[dict[str, str]],
+        fixes: list[dict[str, object]],
         envelope_id: str,
     ) -> ProcessingOutcome:
         return apply_safe_fixes(

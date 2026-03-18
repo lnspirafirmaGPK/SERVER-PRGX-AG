@@ -10,34 +10,10 @@ The codebase separates intention, observation, interpretation, execution, ethics
 
 ## System Architecture Diagram (Database-State Aligned)
 
-The runtime is organized around the `.prgx-ag` state/configuration store, where the Nexus reads manifests and policies, appends audit traces, and updates bounded learning state.
+The runtime is organized around the `.prgx-ag` data stores, where the Nexus reads policy/manifests, executes bounded workflows, and records audit plus learning state as durable repository data.
 
 ```mermaid
 erDiagram
-    NEXUS {
-      string component "PRGXAGNexus orchestrator"
-      string role "coordinates PRGX1, PRGX2, PRGX3"
-    }
-
-    AUDIT_LOG {
-      jsonl ts
-      string event
-      string actor
-      string details
-    }
-
-    LEARNING_STATE {
-      float stability
-      float efficiency
-    }
-
-    GEM_LOG {
-      string lesson
-      json param_update
-      string scope
-      boolean safe_to_apply
-    }
-
     PATIMOKKHA_POLICY {
       array blocked_operations
       array principles
@@ -49,11 +25,6 @@ erDiagram
       string description
       string severity
       string action
-    }
-
-    TRANSLATION_MATRIX {
-      string buddhic_term
-      string runtime_action
     }
 
     EXPECTED_STRUCTURE {
@@ -72,23 +43,60 @@ erDiagram
       array paths
     }
 
-    WORKFLOW_DEFINITIONS {
-      string workflow_name
-      string trigger_mode
-      string repair_scope
+    TRANSLATION_MATRIX {
+      string buddhic_term
+      string runtime_action
     }
 
-    NEXUS ||--o{ AUDIT_LOG : appends
-    NEXUS ||--|| LEARNING_STATE : updates
-    LEARNING_STATE ||--o{ GEM_LOG : emits
-    NEXUS ||--|| PATIMOKKHA_POLICY : enforces
-    NEXUS ||--o{ RULESET_POLICY : checks
-    NEXUS ||--o{ TRANSLATION_MATRIX : interprets
-    NEXUS ||--|| EXPECTED_STRUCTURE : validates
-    NEXUS ||--|| CRITICAL_FILES : verifies
-    NEXUS ||--|| WRITABLE_PATHS : restricts_writes
-    NEXUS ||--|| PROTECTED_PATHS : prevents_mutation
-    NEXUS ||--o{ WORKFLOW_DEFINITIONS : executes
+    LEARNING_STATE {
+      float stability
+      float efficiency
+    }
+
+    GEM_LOG {
+      string lesson
+      json param_update
+      string scope
+      boolean safe_to_apply
+    }
+
+    AUDIT_LOG {
+      jsonl ts
+      string event
+      string actor
+      string details
+    }
+
+    STRUCTURE_REPAIR_WORKFLOW {
+      array allowed_operations
+      array forbidden_operations
+    }
+
+    DEPENDENCY_REPAIR_WORKFLOW {
+      array allowed_operations
+      array forbidden_operations
+    }
+
+    SELF_HEALING_WORKFLOW {
+      array steps
+      string mode
+    }
+
+    SCAN_ONLY_WORKFLOW {
+      array steps
+      string mode
+    }
+
+    PATIMOKKHA_POLICY ||--o{ RULESET_POLICY : constrains
+    EXPECTED_STRUCTURE ||--|| CRITICAL_FILES : defines_required_assets
+    WRITABLE_PATHS ||--|| PROTECTED_PATHS : bounds_write_surface
+    TRANSLATION_MATRIX ||--o{ SELF_HEALING_WORKFLOW : informs_intent_translation
+    SELF_HEALING_WORKFLOW ||--|| STRUCTURE_REPAIR_WORKFLOW : dispatches
+    SELF_HEALING_WORKFLOW ||--|| DEPENDENCY_REPAIR_WORKFLOW : dispatches
+    SELF_HEALING_WORKFLOW ||--|| SCAN_ONLY_WORKFLOW : parallels_governance_modes
+    SELF_HEALING_WORKFLOW ||--o{ AUDIT_LOG : records_repair_attempts
+    LEARNING_STATE ||--o{ GEM_LOG : emits_lessons
+    AUDIT_LOG ||--|| LEARNING_STATE : feeds_rsi_feedback
 ```
 
 ### `.prgx-ag` Data Layout
@@ -145,17 +153,3 @@ pytest
 - PRGX1 is strictly read-only and does not write files.
 - PRGX2 is the sole write authority and is constrained by allowlist/protected-path controls.
 - Patimokkha validation occurs before repair execution.
-
-## Improvement Backlog (EN)
-1. Add policy drift dashboards that compare current Patimokkha/ruleset versions against recent audit outcomes.
-2. Add structured retention and archival rules for `audit_log.jsonl` and `gem_log.json` to keep long-running nodes lightweight.
-3. Add workflow provenance metadata so each repair can be traced back to the exact workflow definition and manifest version used.
-4. Add operator-facing health summaries that aggregate stability, efficiency, blocked intents, and repair success rate in one snapshot.
-5. Add schema versioning/migration notes for `.prgx-ag` state files to support future backward-compatible upgrades.
-
-## ข้อเสนอแนะต่อยอด (TH)
-1. เพิ่ม dashboard สำหรับติดตาม policy drift โดยเปรียบเทียบเวอร์ชันของ Patimokkha/ruleset กับผลลัพธ์ audit ล่าสุด
-2. เพิ่มกติกา retention และ archival แบบมีโครงสร้างสำหรับ `audit_log.jsonl` และ `gem_log.json` เพื่อให้โหนดที่รันนานยังคงเบา
-3. เพิ่ม metadata เรื่อง provenance ของ workflow เพื่อย้อนกลับได้ว่าการซ่อมแต่ละครั้งใช้ workflow และ manifest เวอร์ชันใด
-4. เพิ่มหน้าสรุปสุขภาพระบบสำหรับผู้ดูแล ที่รวมค่า stability, efficiency, blocked intents และอัตราความสำเร็จของการซ่อมในมุมมองเดียว
-5. เพิ่มแนวทาง versioning/migration ของไฟล์สถานะใน `.prgx-ag` เพื่อรองรับการอัปเกรดแบบ backward-compatible ในอนาคต

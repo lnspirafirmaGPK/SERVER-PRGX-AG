@@ -50,3 +50,9 @@ Revert this change set if consumers require previous static-only documentation r
 - Promoted `.github/workflows/prgx-test.yml` as the canonical repository-health gate with a consistent early `python -m compileall src` sanity check.
 - Standardized Python setup/install patterns across the PRGX scan, nightly, and healing workflows to reduce dependency drift and simplify triage.
 - Removed the generic GitHub Pages deployment workflow because it deployed the entire repository root instead of a dedicated static-site artifact, which was not appropriate for this repository health model.
+
+## 2026-03-18 Governed healing pipeline expansion
+- Extended healing fix-plan entries with machine-readable metadata for fix class, rationale, verification commands, rollback hints, and source issue provenance.
+- Upgraded executor and narrative layers so applied fix classes, verification state, and rollback guidance remain visible to reviewers and automation.
+- Reworked the PR healing workflow to keep `.github/workflows/prgx-heal-pr.yml` as the entry point while adding post-fix verification, blocked/revert behavior, and dynamic PR branch metadata generation.
+- Refreshed README architecture documentation to mirror the concrete `.prgx-ag` data stores/workflows and removed completed-recommendation sections from both English and Thai text.
