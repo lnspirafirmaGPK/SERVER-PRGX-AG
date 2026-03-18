@@ -1,28 +1,114 @@
 name: prgx-heal-pr
+
 on:
   workflow_dispatch:
   schedule:
-    - cron: '15 2 * * *'
+    - cron: "15 2 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prgx-heal-pr-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   heal:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     env:
-      PRGX_AG_DRY_RUN: 'true'
+      PRGX_AG_DRY_RUN: "false"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
-      - run: pip install -e .[dev]
-      - run: python -m prgx_ag.main --once
-      - uses: actions/upload-artifact@v4
+          python-version: "3.11"
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run PRGX healing cycle
+        run: python -m prgx_ag.main --once
+
+      - name: Capture runtime reports
         if: always()
+        run: |
+          mkdir -p .prgx-ag
+          git status --short > .prgx-ag/git-status.txt || true
+          git diff --stat > .prgx-ag/git-diff-stat.txt || true
+
+      - name: Upload healing artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: prgx-heal-report
           path: .prgx-ag/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Exclude runtime state from pull request
+        if: always()
+        run: |
+          git restore --source=HEAD --staged --worktree .prgx-ag || true
+          git clean -fd -- .prgx-ag || true
+
+      - name: Detect repository changes
+        id: changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request for safe healing changes
+        if: steps.changes.outputs.has_changes == 'true'
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/prgx-heal
+          delete-branch: true
+          commit-message: "chore(prgx): apply automated safe healing"
+          title: "chore(prgx): apply automated safe healing"
+          body: |
+            Automated PR created by the PRGX-AG healing workflow.
+
+            Summary
+            - Trigger: `${{ github.event_name }}`
+            - Workflow run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+            - Mode: `safe healing`
+            - Runtime reports: attached as workflow artifact `prgx-heal-report`
+
+            Notes
+            - Only repository changes remaining after runtime-state cleanup are proposed.
+            - Review the artifact before merging if additional audit context is needed.
+          labels: |
+            automation
+            prgx-healing
+
+      - name: Write workflow summary
+        if: always()
+        run: |
+          {
+            echo "## PRGX Heal PR"
+            echo ""
+            echo "- Changes detected: \`${{ steps.changes.outputs.has_changes }}\`"
+            echo "- Artifact: \`prgx-heal-report\`"
+            if [ "${{ steps.changes.outputs.has_changes }}" = "true" ]; then
+              echo "- Pull request URL: ${{ steps.cpr.outputs.pull-request-url }}"
+              echo "- Pull request operation: ${{ steps.cpr.outputs.pull-request-operation }}"
+            else
+              echo "- Pull request URL: none"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
