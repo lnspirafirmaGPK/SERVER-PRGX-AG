@@ -5,8 +5,14 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: prgx-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # Automation-only job: scheduled execution duplicates the core gate inline before mutating runtime state.
   nightly:
     runs-on: ubuntu-latest
 
@@ -23,6 +29,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: pyproject.toml
 
       - name: Install project and workflow dependencies
         run: |
@@ -45,8 +52,11 @@ jobs:
         run: python -m prgx_ag.main --once
 
       - name: Upload nightly artifacts
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: prgx-nightly-artifacts
           path: .prgx-ag/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 14

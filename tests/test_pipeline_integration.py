@@ -2,7 +2,6 @@ from pathlib import Path
 
 import asyncio
 
-import pytest
 
 from prgx_ag.core import AetherBus
 from prgx_ag.core.events import AUDIT_VIOLATION, EXECUTE_FIX, FIX_COMPLETED, INTENT_TRANSLATED, ISSUE_REPORTED

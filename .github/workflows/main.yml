@@ -27,7 +27,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: prgx-ag-main-${{ github.ref }}
@@ -61,31 +60,24 @@ jobs:
         run: |
           echo "PRGX_WORKFLOW_MODE=once" >> "$GITHUB_ENV"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          if [ -f pyproject.toml ]; then pip install -e .; fi
+          python -m pip install -e .[dev] ruff mypy
 
       - name: Prepare artifact directories
         run: |
-          mkdir -p .prgx-ag/artifacts
-          mkdir -p .prgx-ag/audit
-          mkdir -p .prgx-ag/state
+          mkdir -p .prgx-ag/artifacts .prgx-ag/audit .prgx-ag/state
 
-      - name: Show repository structure
-        run: |
-          python --version
-          pip --version
-          ls -la
-          find . -maxdepth 3 -type f | sort | sed -n '1,200p'
+      - name: Validate source tree compiles
+        run: python -m compileall src
 
       - name: Run PRGX scan-only
         if: env.PRGX_WORKFLOW_MODE != 'test-only'
@@ -109,11 +101,7 @@ jobs:
 
       - name: Run tests
         run: |
-          if [ -d tests ]; then
-            pytest -q --maxfail=1 --disable-warnings | tee .prgx-ag/artifacts/pytest.log
-          else
-            echo "No tests directory found, skipping pytest." | tee .prgx-ag/artifacts/pytest.log
-          fi
+          pytest -q --maxfail=1 --disable-warnings | tee .prgx-ag/artifacts/pytest.log
 
       - name: Upload PRGX artifacts
         if: always()
@@ -125,6 +113,7 @@ jobs:
             .prgx-ag/audit/**
             .prgx-ag/state/**
           if-no-files-found: warn
+          include-hidden-files: true
 
       - name: Upload pytest cache
         if: always()
@@ -134,3 +123,4 @@ jobs:
           path: |
             .pytest_cache/**
           if-no-files-found: ignore
+          include-hidden-files: true

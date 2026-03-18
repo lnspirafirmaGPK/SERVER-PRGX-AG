@@ -27,10 +27,10 @@ class PatimokkhaChecker:
             return parts
 
         if isinstance(value, (list, tuple, set)):
-            parts: list[str] = []
+            items: list[str] = []
             for item in value:
-                parts.extend(self._flatten(item))
-            return parts
+                items.extend(self._flatten(item))
+            return items
 
         return [str(value)]
 

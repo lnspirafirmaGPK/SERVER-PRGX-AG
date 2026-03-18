@@ -76,3 +76,10 @@ Revert this change set if consumers require previous static-only documentation r
 - Removed the unused `pytest-asyncio` configuration path from `pyproject.toml` so the test suite no longer emits an unknown-config warning in environments that do not install that plugin.
 - Rewrote `README.md` to keep the architecture summary aligned with the actual `.prgx-ag` governance assets and to explicitly exclude completed-suggestion lists from both English and Thai summaries.
 - Replaced leftover demo metadata in `index.html` and `package.json` with repository-accurate PRGX-AG descriptions.
+
+
+## 2026-03-18 Workflow reliability and repository-noise cleanup
+- Fixed `.github/workflows/main.yml` so it installs the dev toolchain required by `pytest`, `ruff`, and `mypy`, adds an explicit compile sanity check, and stops uploading hidden `.prgx-ag` artifacts without opting in.
+- Standardized workflow caching and runner setup across `main.yml`, `prgx-scan.yml`, `prgx-nightly.yml`, `prgx-test.yml`, and `prgx-heal-pr.yml` to reduce drift between the primary gate and the auxiliary automation jobs.
+- Tightened `proof-html.yml` to run only for HTML/workflow changes, added pull-request coverage, and removed redundant workflow noise so the repository health signals stay focused on the actual system structure.
+- Removed an unused `pytest` import from `tests/test_pipeline_integration.py` so `ruff check .` passes consistently in local and CI validation.
