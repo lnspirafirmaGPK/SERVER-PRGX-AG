@@ -41,3 +41,7 @@ Revert this change set if consumers require previous static-only documentation r
 ## 2026-03-17 README architecture/data-store alignment refresh
 - Refined README system architecture to mirror the actual `.prgx-ag` data layout, including policy, manifest, workflow, state, and audit relationships.
 - Removed completed-recommendation overlap from bilingual backlog sections and replaced it with new forward-looking EN/TH enhancement proposals.
+
+## 2026-03-18 Source recovery fix
+- Repaired `src/prgx_ag/agents/prgx1_sentry.py` after a diff artifact and concatenated multi-file patch content were accidentally committed into the module body.
+- Restored the file to valid Python source so import, compile, and packaging pipelines can load the PRGX1 agent again.
