@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 
 
@@ -8,14 +10,14 @@ class EthicalStatus(str, Enum):
     PARAJIKA = "PARAJIKA"
 
 
+class AuditStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 class IntentType(str, Enum):
     QUERY = "QUERY"
     COMMAND = "COMMAND"
     TRANSACTION = "TRANSACTION"
     SYSTEM_UPDATE = "SYSTEM_UPDATE"
-
-
-class AuditStatus(str, Enum):
-    PENDING = "PENDING"
-    APPROVED = "APPROVED"
-    REJECTED = "REJECTED"
