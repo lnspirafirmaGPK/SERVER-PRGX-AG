@@ -1,0 +1,16 @@
+manifest_rules:
+  pyproject.toml:
+    allowed_packages:
+      - pydantic
+      - pydantic-settings
+      - PyYAML
+packages:
+  pydantic:
+    allowed_range: ">=2.6,<3"
+    bump_policy: "minor-only"
+  pydantic-settings:
+    allowed_range: ">=2.2,<3"
+    bump_policy: "minor-only"
+  PyYAML:
+    allowed_range: ">=6.0,<7"
+    bump_policy: "minor-only"

@@ -27,3 +27,7 @@ class ManifestLoader:
 
     def load_policy(self) -> dict[str, Any]:
         return self._load_yaml('.prgx-ag/policy/patimokkha.yaml')
+
+
+    def load_dependency_policy(self) -> dict[str, Any]:
+        return self._load_yaml('.prgx-ag/allowlists/dependency_policy.yaml')

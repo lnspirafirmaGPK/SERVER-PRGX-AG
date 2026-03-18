@@ -18,7 +18,7 @@ def test_governed_repair_pipeline_generates_narrative_and_pr_report(tmp_path: Pa
         checker = PatimokkhaChecker()
         sentry = PRGX1Sentry(bus, root=tmp_path)
         diplomat = PRGX3Diplomat(bus, checker=checker)
-        mechanic = PRGX2Mechanic(bus, tmp_path, checker, ['src/'], ['.git/'], dry_run=False)
+        mechanic = PRGX2Mechanic(bus, tmp_path, checker, ['src/', 'pyproject.toml'], ['.git/'], dry_run=False)
     
         await diplomat.start()
     
@@ -70,6 +70,9 @@ def test_governed_repair_pipeline_generates_narrative_and_pr_report(tmp_path: Pa
             rollback_instructions=outcome.details['rollback_hints'],
             fix_classes=outcome.details['fix_classes'],
             verification_commands=outcome.details['verification_commands'],
+            safety_notes=['Only allowlisted bounded fixes were applied.'],
+            verification_details=[result['summary'] for result in outcome.details['verification_results']],
+            snapshots=[f"{snapshot['path']}: {'existing file captured' if snapshot['existed'] else 'new file recorded'}" for snapshot in outcome.details['snapshots']],
         )
     
         assert outcome.success is True
@@ -80,7 +83,8 @@ def test_governed_repair_pipeline_generates_narrative_and_pr_report(tmp_path: Pa
         assert pr_title.startswith('chore(prgx): heal')
         assert '- Issue count: 2' in pr_body
         assert '- src/prgx_ag/api/__init__.py' in pr_body
-        assert 'compileall, pytest, ruff, mypy' in pr_body
+        assert '### Safety rationale' in pr_body
+        assert '### Recorded snapshots' in pr_body
         assert (tmp_path / 'src' / 'prgx_ag' / 'api' / '__init__.py').exists()
     
     

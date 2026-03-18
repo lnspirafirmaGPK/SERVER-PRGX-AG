@@ -37,7 +37,7 @@ def test_full_nexus_cycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         assert outcome.details['target'] == str(tmp_path)
         assert outcome.details['fix_count'] == 1
         assert outcome.details['changed'] == ['src/prgx_ag/new_pkg/__init__.py']
-        assert outcome.details['fix_classes'] == ['structural.package_marker']
+        assert outcome.details['fix_classes'] == ['create_empty_init']
         assert 'src/prgx_ag/new_pkg/__init__.py' in fix_completed_payload['narrative']
     
     

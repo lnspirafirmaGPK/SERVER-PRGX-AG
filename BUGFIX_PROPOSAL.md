@@ -66,3 +66,8 @@ Revert this change set if consumers require previous static-only documentation r
 - Added deeper Nexus/Mechanic/Patimokkha integration coverage, including realistic governed repair payloads, protected-path enforcement, invalid fix plans, duplicate fixes, traversal attempts, and empty plan rejections.
 - Added PR/report narrative regressions for `github_bridge.py` and `narrative_builder.py` so audit metadata, rollback guidance, and changed-file summaries remain stable.
 - Strengthened `.github/workflows/prgx-test.yml` and README release guidance so governed integration tests run as a required quality gate before broader matrix testing.
+
+## 2026-03-18 Repair engine bounded-safety expansion
+- Introduced explicit governed fix classes (`create_empty_init`, `manifest_sync`, `dependency_bump`) with validator metadata instead of relying on generic empty-file writes.
+- Added dependency allowlist policy data so automatic manifest edits are limited to preapproved package/range pairs and minor-only bump rules.
+- Captured per-fix snapshots, rollback metadata, and post-fix verification results so PR narratives can explain safety, validation, and deterministic reversion paths.

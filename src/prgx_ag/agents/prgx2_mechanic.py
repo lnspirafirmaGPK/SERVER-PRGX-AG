@@ -8,6 +8,7 @@ from prgx_ag.core import BaseAgent
 from prgx_ag.policy import PatimokkhaChecker
 from prgx_ag.schemas import AuditStatus, Intent, ProcessingOutcome
 from prgx_ag.services.fix_executor import apply_safe_fixes
+from prgx_ag.services.healing_intent_builder import build_fix_plan
 
 
 class PRGX2Mechanic(BaseAgent):
@@ -90,7 +91,7 @@ class PRGX2Mechanic(BaseAgent):
                 "content": content,
             }
 
-            for key in ("fix_class", "rationale", "rollback_hint", "source_issue"):
+            for key in ("fix_class", "validator", "rationale", "rollback_hint", "source_issue"):
                 value = item.get(key)
                 if value is not None:
                     metadata[key] = str(value)
@@ -103,14 +104,22 @@ class PRGX2Mechanic(BaseAgent):
                     if str(command).strip()
                 ]
 
+            fix_metadata = item.get("metadata")
+            if isinstance(fix_metadata, dict):
+                metadata["metadata"] = {str(k): v for k, v in fix_metadata.items()}
+
             normalized.append(metadata)
 
         return normalized
 
     async def update_dependency(self, path: str, content: str) -> ProcessingOutcome:
+        dependency_findings = {"dependency_issues": [content], "structural_issues": []}
+        planned = build_fix_plan(dependency_findings, repo_root=self.root)
+        if not planned:
+            return self._reject(envelope_id="dependency-update", message="Dependency update not allowlisted", target=path)
         return apply_safe_fixes(
             self.root,
-            fixes=[{"path": path, "content": content}],
+            fixes=planned,
             allowed_paths=self.allowed_paths,
             protected_paths=self.protected_paths,
             envelope_id="dependency-update",
