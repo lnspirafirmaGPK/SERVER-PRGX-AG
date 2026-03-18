@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 from prgx_ag.policy.ruleset import (
-    BLOCKED_PATTERNS,
+    POLICY_RULES,
     PRINCIPLES,
+    PolicyRule,
     SAFE_AETHEBUD_TERMS,
-    SAFE_CONTEXT_HINTS,
     SAFE_EXPORTED_COMMANDS,
 )
 from prgx_ag.schemas import AuditResult, EthicalStatus, Intent
@@ -40,16 +40,19 @@ class PatimokkhaChecker:
     def _metadata(self, intent: Intent) -> dict[str, Any]:
         return intent.metadata if isinstance(intent.metadata, dict) else {}
 
-    def _intent_text(self, intent: Intent) -> str:
-        metadata = self._metadata(intent)
-        parts = [
-            getattr(intent, "id", ""),
-            getattr(intent, "source_agent", ""),
-            getattr(intent, "target_firma", ""),
-            getattr(intent, "description", ""),
-            *self._flatten(metadata),
-        ]
-        return self._normalize_text(" ".join(filter(None, map(str, parts))))
+    def _intent_fields(self, intent: Intent) -> dict[str, str]:
+        return {
+            "id": self._normalize_text(getattr(intent, "id", "")),
+            "source_agent": self._normalize_text(getattr(intent, "source_agent", "")),
+            "target_firma": self._normalize_text(getattr(intent, "target_firma", "")),
+            "description": self._normalize_text(getattr(intent, "description", "")),
+        }
+
+    def _metadata_fields(self, metadata: dict[str, Any]) -> dict[str, str]:
+        fields: dict[str, str] = {}
+        for key, value in metadata.items():
+            fields[f"metadata.{key}"] = self._normalize_text(" ".join(self._flatten(value)))
+        return fields
 
     def _safe_command_context(self, metadata: dict[str, Any]) -> bool:
         internal_term = self._normalize_text(metadata.get("internal_term", ""))
@@ -60,49 +63,75 @@ class PatimokkhaChecker:
             or exported_command in SAFE_EXPORTED_COMMANDS
         )
 
-    def _has_safe_context_near_match(
-        self,
-        text: str,
-        token: str,
-        window: int = 96,
-    ) -> bool:
+    def _find_context_hint(self, text: str, token: str, hints: tuple[str, ...], window: int = 96) -> str | None:
         start = 0
         while True:
             index = text.find(token, start)
             if index == -1:
-                return False
+                return None
 
             left = max(0, index - window)
             right = min(len(text), index + len(token) + window)
             local_text = text[left:right]
 
-            if any(hint in local_text for hint in SAFE_CONTEXT_HINTS):
-                return True
+            for hint in hints:
+                if hint in local_text:
+                    return hint.strip()
 
             start = index + len(token)
 
-    def _classify_matches(
-        self,
-        text: str,
-    ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
-        hard_blocks: list[tuple[str, str]] = []
-        contextual_mentions: list[tuple[str, str]] = []
+    def _rule_applies_to_field(self, rule: PolicyRule, field_name: str) -> bool:
+        if rule.scope == "intent_text":
+            return field_name in {"id", "source_agent", "target_firma", "description"}
+        if rule.scope == "metadata_operational":
+            return field_name.startswith("metadata.") and any(
+                token in field_name
+                for token in (
+                    "command",
+                    "operation",
+                    "script",
+                    "shell",
+                    "query",
+                    "sql",
+                    "action",
+                    "plan",
+                    "step",
+                    "payload",
+                )
+            )
+        if rule.scope == "metadata_context":
+            return field_name.startswith("metadata.")
+        return False
 
-        for token, reason in BLOCKED_PATTERNS.items():
-            if token not in text:
+    def _collect_matches(self, fields: dict[str, str]) -> list[dict[str, Any]]:
+        matches: list[dict[str, Any]] = []
+        for field_name, field_text in fields.items():
+            if not field_text:
                 continue
 
-            if self._has_safe_context_near_match(text, token):
-                contextual_mentions.append((token, reason))
-            else:
-                hard_blocks.append((token, reason))
+            for rule in POLICY_RULES:
+                if not self._rule_applies_to_field(rule, field_name):
+                    continue
+                if rule.pattern not in field_text:
+                    continue
 
-        return hard_blocks, contextual_mentions
+                context_hint = self._find_context_hint(field_text, rule.pattern, rule.allow_context_hints)
+                matches.append(
+                    {
+                        "field": field_name,
+                        "pattern": rule.pattern,
+                        "rule_id": rule.rule_id,
+                        "scope": rule.scope,
+                        "severity": rule.severity,
+                        "reason": rule.reason,
+                        "recommended_action": rule.recommended_action,
+                        "context_hint": context_hint,
+                        "review_mode": bool(context_hint and rule.allow_context_hints),
+                    }
+                )
+        return matches
 
-    def _derive_operational_status(
-        self,
-        metadata: dict[str, Any],
-    ) -> EthicalStatus:
+    def _derive_operational_status(self, metadata: dict[str, Any]) -> EthicalStatus:
         raw_status = self._normalize_text(metadata.get("ethical_status", ""))
 
         if raw_status == self._normalize_text(EthicalStatus.PARAJIKA.value):
@@ -118,29 +147,49 @@ class PatimokkhaChecker:
 
     def validate_intent(self, intent: Intent) -> AuditResult:
         metadata = self._metadata(intent)
-        text = self._intent_text(intent)
+        intent_fields = self._intent_fields(intent)
+        metadata_fields = self._metadata_fields(metadata)
+        matches = self._collect_matches({**intent_fields, **metadata_fields})
 
-        hard_blocks, contextual_mentions = self._classify_matches(text)
+        direct_rejects = [match for match in matches if match["severity"] == "reject" and not match["review_mode"]]
+        contextual_reviews = [
+            match for match in matches if match["review_mode"] or match["severity"] == "review"
+        ]
 
-        if hard_blocks:
-            token, reason = hard_blocks[0]
+        if direct_rejects:
+            primary = direct_rejects[0]
             return AuditResult(
                 is_allowed=False,
                 status=EthicalStatus.PARAJIKA,
-                reason=f"{reason} Matched token: {token}",
-                suggested_action="Escalate to audit and reject execution.",
+                reason=f"{primary['reason']} Matched pattern: {primary['pattern']}",
+                suggested_action=primary["recommended_action"],
+                outcome="reject",
+                metadata={
+                    "outcome": "reject",
+                    "evaluation_mode": "direct_block",
+                    "matched_fields": sorted({match["field"] for match in direct_rejects}),
+                    "rule_fired": primary["rule_id"],
+                    "evidence": direct_rejects,
+                },
             )
 
-        if contextual_mentions:
-            tokens = ", ".join(token for token, _ in contextual_mentions[:5])
+        if contextual_reviews:
+            primary = contextual_reviews[0]
             return AuditResult(
                 is_allowed=True,
                 status=EthicalStatus.MINOR_INFRACTION,
                 reason=(
-                    "Contextual risk terms were detected, but they appear in a "
-                    f"defensive or audit-oriented context. Reviewed tokens: {tokens}"
+                    f"{primary['reason']} Matched pattern: {primary['pattern']} in {primary['field']}"
                 ),
-                suggested_action="Proceed with monitored execution and retain audit trail.",
+                suggested_action="Require human or governance review before execution.",
+                outcome="review_required",
+                metadata={
+                    "outcome": "review_required",
+                    "evaluation_mode": "contextual_review",
+                    "matched_fields": sorted({match["field"] for match in contextual_reviews}),
+                    "rule_fired": primary["rule_id"],
+                    "evidence": contextual_reviews,
+                },
             )
 
         operational_status = self._derive_operational_status(metadata)
@@ -156,6 +205,14 @@ class PatimokkhaChecker:
                     "bounded by recognized safety commands and governance context."
                 ),
                 suggested_action="Proceed with strict monitoring and retain full audit evidence.",
+                outcome="allow",
+                metadata={
+                    "outcome": "allow",
+                    "evaluation_mode": "safe_operational_override",
+                    "matched_fields": [],
+                    "rule_fired": None,
+                    "evidence": [],
+                },
             )
 
         principles = ", ".join(PRINCIPLES)
@@ -164,4 +221,12 @@ class PatimokkhaChecker:
             status=EthicalStatus.CLEAN,
             reason=f"Intent complies with Patimokkha principles: {principles}.",
             suggested_action="Proceed with monitored execution.",
+            outcome="allow",
+            metadata={
+                "outcome": "allow",
+                "evaluation_mode": "no_rule_triggered",
+                "matched_fields": [],
+                "rule_fired": None,
+                "evidence": [],
+            },
         )
