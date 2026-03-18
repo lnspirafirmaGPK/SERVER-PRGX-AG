@@ -14,4 +14,5 @@ class AuditResult(BaseModel):
     status: EthicalStatus
     reason: str | None = None
     suggested_action: str | None = None
+    outcome: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)

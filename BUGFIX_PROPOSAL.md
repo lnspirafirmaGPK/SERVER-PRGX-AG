@@ -56,3 +56,8 @@ Revert this change set if consumers require previous static-only documentation r
 - Upgraded executor and narrative layers so applied fix classes, verification state, and rollback guidance remain visible to reviewers and automation.
 - Reworked the PR healing workflow to keep `.github/workflows/prgx-heal-pr.yml` as the entry point while adding post-fix verification, blocked/revert behavior, and dynamic PR branch metadata generation.
 - Refreshed README architecture documentation to mirror the concrete `.prgx-ag` data stores/workflows and removed completed-recommendation sections from both English and Thai text.
+
+## 2026-03-18 Structured Patimokkha rule evaluation refactor
+- Replaced flat blocked-token matching with explicit policy rule objects carrying scope, severity, allow-context hints, and recommended actions.
+- Extended audit outputs with structured match evidence so reviewers can see which field matched, which rule fired, and whether the outcome was allow, contextual review, or reject.
+- Added regression tests for defensive narratives, safe exported commands, and malicious payloads hidden inside metadata.
