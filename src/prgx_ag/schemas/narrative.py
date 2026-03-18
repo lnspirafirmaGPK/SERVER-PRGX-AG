@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class RepairNarrative(BaseModel):
-    """Human-readable story of one healing cycle."""
-
-    model_config = ConfigDict(extra='forbid', strict=True)
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
     title: str
     detected: str
     repaired: str
     learned: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("title", "detected", "repaired", "learned")
+    @classmethod
+    def _normalize_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
