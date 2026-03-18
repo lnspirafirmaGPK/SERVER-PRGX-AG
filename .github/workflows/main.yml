@@ -1,0 +1,136 @@
+name: PRGX-AG Main
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode: scan-only | once | test-only"
+        required: false
+        default: "once"
+      dry_run:
+        description: "Dry run mode"
+        required: false
+        default: "true"
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: prgx-ag-main-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PRGX_AG_DRY_RUN: "true"
+  PRGX_AG_ENV: "ci"
+  PRGX_LOG_DIR: ".prgx-ag/artifacts"
+
+jobs:
+  prgx-main:
+    name: Scan, Once, and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set workflow env from dispatch inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "PRGX_WORKFLOW_MODE=${{ github.event.inputs.mode }}" >> "$GITHUB_ENV"
+          echo "PRGX_AG_DRY_RUN=${{ github.event.inputs.dry_run }}" >> "$GITHUB_ENV"
+
+      - name: Set default workflow mode
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "PRGX_WORKFLOW_MODE=once" >> "$GITHUB_ENV"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+
+      - name: Prepare artifact directories
+        run: |
+          mkdir -p .prgx-ag/artifacts
+          mkdir -p .prgx-ag/audit
+          mkdir -p .prgx-ag/state
+
+      - name: Show repository structure
+        run: |
+          python --version
+          pip --version
+          ls -la
+          find . -maxdepth 3 -type f | sort | sed -n '1,200p'
+
+      - name: Run PRGX scan-only
+        if: env.PRGX_WORKFLOW_MODE != 'test-only'
+        run: |
+          set -e
+          if command -v prgx-ag >/dev/null 2>&1; then
+            prgx-ag --scan-only | tee .prgx-ag/artifacts/prgx-scan.log
+          else
+            python -m prgx_ag.main --scan-only | tee .prgx-ag/artifacts/prgx-scan.log
+          fi
+
+      - name: Run PRGX once cycle
+        if: env.PRGX_WORKFLOW_MODE == 'once'
+        run: |
+          set -e
+          if command -v prgx-ag >/dev/null 2>&1; then
+            prgx-ag --once | tee .prgx-ag/artifacts/prgx-once.log
+          else
+            python -m prgx_ag.main --once | tee .prgx-ag/artifacts/prgx-once.log
+          fi
+
+      - name: Run tests
+        run: |
+          if [ -d tests ]; then
+            pytest -q --maxfail=1 --disable-warnings | tee .prgx-ag/artifacts/pytest.log
+          else
+            echo "No tests directory found, skipping pytest." | tee .prgx-ag/artifacts/pytest.log
+          fi
+
+      - name: Upload PRGX artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prgx-ag-artifacts-${{ github.run_id }}
+          path: |
+            .prgx-ag/artifacts/**
+            .prgx-ag/audit/**
+            .prgx-ag/state/**
+          if-no-files-found: warn
+
+      - name: Upload pytest cache
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prgx-ag-pytest-cache-${{ github.run_id }}
+          path: |
+            .pytest_cache/**
+          if-no-files-found: ignore
