@@ -80,8 +80,9 @@ def _repaired_for(outcome: ProcessingOutcome) -> str:
     changed = _coerce_list_of_str(details.get("changed"))
     dry_run = _coerce_bool(details.get("dry_run"), default=False)
     verification_status = _coerce_str(details.get("verification_status"), default="not-run")
-    verification_results = details.get("verification_results") if isinstance(details.get("verification_results"), list) else []
-    verified_count = sum(1 for result in verification_results if isinstance(result, dict) and result.get("passed") is True)
+    verification_results = details.get("verification_results")
+    normalized_results = verification_results if isinstance(verification_results, list) else []
+    verified_count = sum(1 for result in normalized_results if isinstance(result, dict) and result.get("passed") is True)
 
     if changed:
         changed_preview = ", ".join(changed[:5])
@@ -100,7 +101,8 @@ def _learned_for(outcome: ProcessingOutcome) -> str:
     audit_reason = _coerce_str(details.get("audit_reason"), default="")
     execution_time = f"{outcome.execution_time:.4f}s"
     rollback_hints = _coerce_list_of_str(details.get("rollback_hints"))
-    snapshots = details.get("snapshots") if isinstance(details.get("snapshots"), list) else []
+    snapshots_value = details.get("snapshots")
+    snapshots = snapshots_value if isinstance(snapshots_value, list) else []
 
     notes: list[str] = [f"ExecutionTime={execution_time}"]
     if audit_reason and audit_reason != "n/a":
@@ -138,7 +140,8 @@ def build_commit_style_narrative(outcome: ProcessingOutcome) -> str:
     fix_count_text = str(fix_count) if isinstance(fix_count, int) else "n/a"
     fix_classes = ",".join(_coerce_list_of_str(details.get("fix_classes"))) or "none"
     verification_status = _coerce_str(details.get("verification_status"), default="not-run")
-    revertibility = len(details.get("snapshots", [])) if isinstance(details.get("snapshots"), list) else 0
+    snapshots_value = details.get("snapshots")
+    revertibility = len(snapshots_value) if isinstance(snapshots_value, list) else 0
     return (
         f"{mode}: {outcome.message} | target={target} | fixes={fix_count_text} | "
         f"fix_classes={fix_classes} | verification={verification_status} | revertible={revertibility} | "

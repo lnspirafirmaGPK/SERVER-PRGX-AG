@@ -126,7 +126,7 @@ def _parse_dependency_bump_issue(issue: str) -> tuple[str, str, str] | None:
 
 
 def _load_dependency_policy(repo_root: Path | None) -> dict[str, Any]:
-    default_policy = {"manifest_rules": {}, "packages": {}}
+    default_policy: dict[str, dict[str, Any]] = {"manifest_rules": {}, "packages": {}}
     candidates = [candidate for candidate in [repo_root, Path.cwd()] if candidate is not None]
 
     for candidate in candidates:

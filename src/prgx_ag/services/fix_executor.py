@@ -98,7 +98,8 @@ def _render_dependency_manifest(original: str, dependency_name: str, version_spe
 
 
 def _apply_fix_content(target: Path, rel_path: str, fix: FixPlanEntry) -> str:
-    metadata = fix.get("metadata") if isinstance(fix.get("metadata"), dict) else {}
+    raw_metadata = fix.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
     fix_class = str(fix.get("fix_class", ""))
     if fix_class == "dependency_bump":
         original = target.read_text(encoding="utf-8") if target.exists() else ""
@@ -111,7 +112,8 @@ def _apply_fix_content(target: Path, rel_path: str, fix: FixPlanEntry) -> str:
 def _validate_fix(fix: FixPlanEntry, rel_path: str) -> str | None:
     fix_class = str(fix.get("fix_class", ""))
     validator = str(fix.get("validator", "")).strip()
-    metadata = fix.get("metadata") if isinstance(fix.get("metadata"), dict) else {}
+    raw_metadata = fix.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
 
     if fix_class == "create_empty_init":
         if not rel_path.endswith("/__init__.py") and rel_path != "__init__.py":
@@ -125,7 +127,7 @@ def _validate_fix(fix: FixPlanEntry, rel_path: str) -> str | None:
             return "manifest_sync currently only permits empty file content"
     elif fix_class == "dependency_bump":
         required_keys = {"dependency_name", "dependency_version", "manifest_path", "allowlisted_range", "bump_policy"}
-        if not required_keys.issubset(metadata):
+        if not required_keys.issubset(metadata.keys()):
             return "dependency_bump missing allowlist metadata"
         if rel_path != str(metadata.get("manifest_path", "")).strip():
             return "dependency_bump manifest path mismatch"
@@ -141,7 +143,8 @@ def _validate_fix(fix: FixPlanEntry, rel_path: str) -> str | None:
 
 def _verify_fix(target: Path, fix: FixPlanEntry, rendered_content: str) -> dict[str, Any]:
     fix_class = str(fix.get("fix_class", ""))
-    metadata = fix.get("metadata") if isinstance(fix.get("metadata"), dict) else {}
+    raw_metadata = fix.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
     exists = target.exists()
     current_content = target.read_text(encoding="utf-8") if exists and target.is_file() else None
 

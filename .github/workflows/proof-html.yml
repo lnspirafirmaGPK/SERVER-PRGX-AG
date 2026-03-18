@@ -1,11 +1,28 @@
-name: Proof HTML
+name: proof-html
+
 on:
   push:
+    paths:
+      - '**/*.html'
+      - '.github/workflows/proof-html.yml'
+  pull_request:
+    paths:
+      - '**/*.html'
+      - '.github/workflows/proof-html.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proof-html-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: anishathalye/proof-html@v1.1.0
+      - name: Validate HTML proofs
+        uses: anishathalye/proof-html@v2
         with:
           directory: ./
