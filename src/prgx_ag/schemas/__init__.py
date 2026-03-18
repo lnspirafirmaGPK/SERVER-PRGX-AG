@@ -8,15 +8,15 @@ from prgx_ag.schemas.narrative import RepairNarrative
 from prgx_ag.schemas.outcome import ProcessingOutcome
 
 __all__ = [
-    'Intent',
-    'AuditResult',
-    'AkashicEnvelope',
-    'ProcessingOutcome',
-    'GemOfWisdom',
-    'EthicalStatus',
-    'IntentType',
-    'AuditStatus',
-    'Finding',
-    'IssueReport',
-    'RepairNarrative',
+    "Intent",
+    "AuditResult",
+    "AkashicEnvelope",
+    "ProcessingOutcome",
+    "GemOfWisdom",
+    "EthicalStatus",
+    "IntentType",
+    "AuditStatus",
+    "Finding",
+    "IssueReport",
+    "RepairNarrative",
 ]
