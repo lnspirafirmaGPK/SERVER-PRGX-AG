@@ -1,23 +1,51 @@
 name: prgx-nightly
+
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: "0 3 * * *"
   workflow_dispatch:
+
 jobs:
+  # Automation-only job: scheduled execution duplicates the core gate inline before mutating runtime state.
   nightly:
     runs-on: ubuntu-latest
+
     env:
-      PRGX_AG_DRY_RUN: 'true'
+      PRGX_AG_DRY_RUN: "true"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
-      - run: pip install -e .[dev]
-      - run: python -m prgx_ag.main --scan-only
-      - run: python -m prgx_ag.main --once
-      - uses: actions/upload-artifact@v4
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install project and workflow dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev] ruff mypy
+
+      - name: Validate source tree compiles
+        run: python -m compileall src
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Mypy type check
+        run: mypy src/prgx_ag --ignore-missing-imports
+
+      - name: Run observational scan
+        run: python -m prgx_ag.main --scan-only
+
+      - name: Run nightly automation cycle
+        run: python -m prgx_ag.main --once
+
+      - name: Upload nightly artifacts
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: prgx-nightly-artifacts

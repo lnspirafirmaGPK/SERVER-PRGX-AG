@@ -45,3 +45,8 @@ Revert this change set if consumers require previous static-only documentation r
 ## 2026-03-18 Source recovery fix
 - Repaired `src/prgx_ag/agents/prgx1_sentry.py` after a diff artifact and concatenated multi-file patch content were accidentally committed into the module body.
 - Restored the file to valid Python source so import, compile, and packaging pipelines can load the PRGX1 agent again.
+
+## 2026-03-18 Workflow governance gate alignment
+- Promoted `.github/workflows/prgx-test.yml` as the canonical repository-health gate with a consistent early `python -m compileall src` sanity check.
+- Standardized Python setup/install patterns across the PRGX scan, nightly, and healing workflows to reduce dependency drift and simplify triage.
+- Removed the generic GitHub Pages deployment workflow because it deployed the entire repository root instead of a dedicated static-site artifact, which was not appropriate for this repository health model.
