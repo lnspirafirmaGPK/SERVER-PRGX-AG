@@ -37,3 +37,7 @@ Revert this change set if consumers require previous static-only documentation r
 - Added integrity scanner + healing intent builder + finding/narrative schemas to complete Porisjem role boundaries.
 - Extended orchestrator with `PRGXAGNexus` naming, shutdown support, and compatibility alias.
 - Updated README with full Porisjem/AETHERIUM framing, refreshed architecture diagram context, and new EN/TH future backlog items.
+
+## 2026-03-17 README architecture/data-store alignment refresh
+- Refined README system architecture to mirror the actual `.prgx-ag` data layout, including policy, manifest, workflow, state, and audit relationships.
+- Removed completed-recommendation overlap from bilingual backlog sections and replaced it with new forward-looking EN/TH enhancement proposals.
