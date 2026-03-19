@@ -83,3 +83,22 @@ Revert this change set if consumers require previous static-only documentation r
 - Standardized workflow caching and runner setup across `main.yml`, `prgx-scan.yml`, `prgx-nightly.yml`, `prgx-test.yml`, and `prgx-heal-pr.yml` to reduce drift between the primary gate and the auxiliary automation jobs.
 - Tightened `proof-html.yml` to run only for HTML/workflow changes, added pull-request coverage, and removed redundant workflow noise so the repository health signals stay focused on the actual system structure.
 - Removed an unused `pytest` import from `tests/test_pipeline_integration.py` so `ruff check .` passes consistently in local and CI validation.
+
+
+## 2026-03-19 Repository review follow-up proposals
+
+### 1) Typo/text-fix task
+- Normalize the product naming text in the public-facing docs (`README.md`, `index.html`, and package metadata) so the branding string is consistent everywhere and any ambiguous wording is removed.
+- Why this is worth doing: the repo currently mixes several product/protocol labels in top-level documentation, which increases the chance of copy edits or release metadata drifting apart.
+
+### 2) Bug-fix task
+- Fix `apply_safe_fixes(..., dry_run=True)` so dry-run verification does not write repository files to disk before restoring them.
+- Why this is worth doing: the current dry-run branch creates parent directories, writes the rendered file, verifies it, and only then restores/deletes it. That behavior can still trigger file watchers, timestamps, or external tooling and does not match the usual expectation of a no-write dry run.
+
+### 3) Comment/docs-alignment task
+- Update the runtime/inline documentation around dry-run and compatibility behavior so it matches the implementation contracts precisely.
+- Suggested scope: document that `wire_subscriptions()` is a compatibility alias for `wire_event_subscriptions()`, and clarify the dry-run semantics in the repair executor docs/comments so README safety statements and code-level explanations stay aligned.
+
+### 4) Test-improvement task
+- Add a regression test that proves dry-run repair verification leaves both file contents and directory tree state unchanged after execution.
+- Why this is worth doing: the current suite validates success paths and metadata, but it does not explicitly assert that dry-run execution avoids filesystem side effects such as creating then deleting package directories or mutating mtimes/content during verification.
