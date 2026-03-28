@@ -252,7 +252,7 @@ The repository now reserves three GitHub Environments for workflow-controlled de
 
 ## ข้อเสนอฟังก์ชัน/แนวทางต่อยอดใหม่ (เฉพาะงานที่ยังไม่เสร็จ)
 
-> จงใจไม่ใส่ “ข้อเสนอแนะที่ทำเสร็จแล้ว” เพื่อไม่ให้ปะปนกับงานที่กำลังพัฒนา
+> ตั้งใจไม่ใส่รายการข้อเสนอที่ปิดงานแล้ว เพื่อให้รายการนี้โฟกัสเฉพาะงานที่ยังต้องทำ
 
 1. **โหมดจำลองนโยบาย (Policy simulation sandbox)**: เพิ่มโหมด `--simulate-policy` เพื่อทดสอบกฎ Patimokkha/ruleset กับ fix plan สมมติ โดยไม่เขียนไฟล์ลงรีโป
 2. **รายงาน workflow drift สำหรับแดชบอร์ด**: ส่งออกสรุป drift เป็น `json/csv` จากงาน nightly และ PR healing เพื่อทำแนวโน้มความผิดปกติ
