@@ -51,7 +51,7 @@ class PRGXAGNexus:
         await self.bus.subscribe(EXECUTE_FIX, self._handle_execute_fix)
 
     async def wire_subscriptions(self) -> None:
-        # backward compatibility
+        # Backward-compatibility alias for legacy callers.
         await self.wire_event_subscriptions()
 
     async def _handle_execute_fix(self, payload: dict[str, object]) -> None:

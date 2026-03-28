@@ -167,6 +167,30 @@ def _verify_fix(target: Path, fix: FixPlanEntry, rendered_content: str) -> dict[
     }
 
 
+def _verify_rendered_fix(fix: FixPlanEntry, rendered_content: str) -> dict[str, Any]:
+    fix_class = str(fix.get("fix_class", ""))
+    raw_metadata = fix.get("metadata")
+    metadata: dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
+
+    passed = False
+    summary = "verification not run"
+    if fix_class in {"create_empty_init", "manifest_sync"}:
+        passed = rendered_content == ""
+        summary = "verified dry-run payload renders an empty package marker"
+    elif fix_class == "dependency_bump":
+        needle = f'{metadata.get("dependency_name", "")}{metadata.get("dependency_version", "")}'
+        passed = needle in rendered_content
+        summary = f"verified dry-run manifest contains allowlisted spec {needle}"
+
+    return {
+        "path": str(fix.get("path", "")),
+        "fix_class": fix_class,
+        "passed": passed,
+        "summary": summary,
+        "revert": str(fix.get("rollback_hint", "")).strip(),
+    }
+
+
 def apply_safe_fixes(repo_root: Path, fixes: list[FixPlanEntry], allowed_paths: list[str], protected_paths: list[str], envelope_id: str, dry_run: bool) -> ProcessingOutcome:
     changed: list[str] = []
     snapshots: list[dict[str, Any]] = []
@@ -204,13 +228,7 @@ def apply_safe_fixes(repo_root: Path, fixes: list[FixPlanEntry], allowed_paths: 
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(rendered_content, encoding="utf-8")
         else:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(rendered_content, encoding="utf-8")
-            verification_results.append(_verify_fix(target, fix, rendered_content))
-            if snapshots[-1]["existed"] and snapshots[-1]["previous_content"] is not None:
-                target.write_text(str(snapshots[-1]["previous_content"]), encoding="utf-8")
-            else:
-                target.unlink(missing_ok=True)
+            verification_results.append(_verify_rendered_fix(fix, rendered_content))
 
         if not dry_run:
             verification_results.append(_verify_fix(target, fix, rendered_content))

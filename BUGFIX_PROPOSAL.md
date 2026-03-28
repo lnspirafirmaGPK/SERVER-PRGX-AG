@@ -116,3 +116,9 @@ Revert this change set if consumers require previous static-only documentation r
 - Added explicit GitHub Environment wiring so workflow runs can target `development`, `staging`, or `production` with consistent branch-based defaults.
 - Documented the required environment names, protection guidance, and suggested environment-scoped secrets for future deployment/promotion jobs.
 - Kept the README release/deployment guidance aligned with the workflow configuration so operators can create matching repository environments in GitHub settings.
+
+## 2026-03-28 Dry-run side-effect hardening and maintenance follow-through
+- Updated `src/prgx_ag/services/fix_executor.py` so `dry_run=True` verification is fully in-memory and no longer creates directories or writes temporary files.
+- Added regression coverage in `tests/test_prgx2_mechanic.py` to verify dry-run dependency bumps keep repository content and directory state unchanged.
+- Clarified the `wire_subscriptions()` compatibility comment in `src/prgx_ag/orchestrator/nexus.py` to avoid ambiguous wording drift in future edits.
+- Completed the previously proposed task set from 2026-03-19: typo/text polish, dry-run bug fix, comment/doc alignment, and dry-run regression testing.
