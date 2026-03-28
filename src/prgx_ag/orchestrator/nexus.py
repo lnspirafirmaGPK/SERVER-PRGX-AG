@@ -11,6 +11,10 @@ from prgx_ag.core.events import EXECUTE_FIX, RSI_FEEDBACK
 from prgx_ag.policy import PatimokkhaChecker
 from prgx_ag.rsi import LearningState, RSIEngine
 from prgx_ag.rsi.gems import append_gem_log
+from prgx_ag.services.governance_evidence import (
+    append_audit_event,
+    create_signed_governance_evidence_bundle,
+)
 
 
 class PRGXAGNexus:
@@ -22,6 +26,7 @@ class PRGXAGNexus:
         self.checker = PatimokkhaChecker()
         self.state_path = self.repo_root / ".prgx-ag/state/learning_state.json"
         self.gem_log_path = self.repo_root / ".prgx-ag/state/gem_log.json"
+        self.audit_log_path = self.repo_root / ".prgx-ag/audit/audit_log.jsonl"
 
         defaults = RuntimePaths()
         allowed = parse_path_list(settings.allowed_write_paths, defaults.allowed)
@@ -41,6 +46,7 @@ class PRGXAGNexus:
             checker=self.checker,
             agent_id="PRGX3",
             role="Diplomat",
+            runtime_profile=settings.runtime_profile,
         )
         self.rsi_engine = RSIEngine()
         self.learning_state = LearningState.load(self.state_path)
@@ -63,6 +69,33 @@ class PRGXAGNexus:
         )
 
         outcome = await self.prgx2.apply_shadow_fix(target, payload)
+        append_audit_event(
+            self.audit_log_path,
+            event="porisjem.fix_completed",
+            actor="PRGX2",
+            details={
+                "envelope_id": outcome.envelope_id,
+                "success": outcome.success,
+                "message": outcome.message,
+                "details": outcome.details,
+            },
+        )
+
+        if outcome.success:
+            create_signed_governance_evidence_bundle(
+                self.repo_root,
+                audit_window_hours=self.settings.audit_window_hours,
+                fix_plan_metadata={
+                    "envelope_id": outcome.envelope_id,
+                    "fix_count": outcome.details.get("fix_count"),
+                    "fix_classes": outcome.details.get("fix_classes", []),
+                    "verification_status": outcome.details.get("verification_status", "not-run"),
+                    "rollback_hints": outcome.details.get("rollback_hints", []),
+                },
+                medical_findings_path=self.settings.medical_findings_path,
+                profile_name=self.settings.runtime_profile,
+            )
+
         await self.prgx3.report_result(outcome)
 
         gem = self.rsi_engine.analyze(outcome)
