@@ -139,3 +139,21 @@ def test_prgx2_dependency_bump_records_snapshot_and_verification(tmp_path: Path)
         assert outcome.details['snapshots'][0]['previous_content'].startswith('[project]')
         assert 'pydantic>=2.6,<3' in pyproject.read_text(encoding='utf-8')
     asyncio.run(_run())
+
+
+def test_prgx2_dry_run_dependency_bump_keeps_repository_unchanged(tmp_path: Path) -> None:
+    async def _run() -> None:
+        pyproject = tmp_path / 'pyproject.toml'
+        original = '[project]\ndependencies = [\n  "pydantic>=2.5,<3",\n]\n'
+        pyproject.write_text(original, encoding='utf-8')
+        src_dir = tmp_path / 'src'
+        assert not src_dir.exists()
+
+        mech = PRGX2Mechanic(AetherBus(), tmp_path, PatimokkhaChecker(), ['src/', 'pyproject.toml'], ['.git/'], dry_run=True)
+        outcome = await mech.update_dependency('pyproject.toml', 'Allowlisted dependency bump in pyproject.toml: pydantic -> >=2.6,<3')
+
+        assert outcome.success is True
+        assert outcome.details['verification_status'] == 'passed'
+        assert pyproject.read_text(encoding='utf-8') == original
+        assert not src_dir.exists()
+    asyncio.run(_run())
