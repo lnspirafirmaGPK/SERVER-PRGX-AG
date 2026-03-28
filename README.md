@@ -35,6 +35,7 @@ The codebase keeps intention, observation, interpretation, execution, ethics, an
 - `tests/`: regression and integration coverage for the runtime and repository metadata.
 - `.github/workflows/`: repository validation and governed automation.
 - `package.json` and `index.html`: lightweight repository metadata/proofing assets kept at the root for HTML/metadata checks; they are **supporting repo artifacts**, not the primary application stack.
+- `OFFICIAL_SYSTEM_INTEGRATION_REPORT_TH.md`: Thai-language formal system-of-systems integration report covering internal/external operating model links across related repositories.
 
 ## System Architecture Diagram (Database-State Aligned)
 
