@@ -56,7 +56,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
-      name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment || (env.PRGX_BRANCH_CONTEXT == 'main' && 'production' || env.PRGX_BRANCH_CONTEXT == 'master' && 'production' || env.PRGX_BRANCH_CONTEXT == 'develop' && 'staging' || 'development') }}
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_environment || ((github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name) == 'main' && 'production' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name) == 'master' && 'production' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name) == 'develop' && 'staging' || 'development') }}
 
     steps:
       - name: Checkout repository
