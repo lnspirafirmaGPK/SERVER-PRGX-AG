@@ -1,4 +1,6 @@
-from prgx_ag.config import RUNTIME_PROFILES, Settings
+import pytest
+
+from prgx_ag.config import RUNTIME_PROFILES, RuntimeProfile, Settings
 
 
 def test_runtime_profiles_have_distinct_controls() -> None:
