@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--scan-only', action='store_true')
     parser.add_argument('--repo-root', type=str)
     parser.add_argument('--dry-run', action='store_true')
-    parser.add_argument('--runtime-profile', choices=list(RUNTIME_PROFILES))
+    parser.add_argument('--runtime-profile', choices=['development', 'staging', 'production'])
     return parser.parse_args()
 
 

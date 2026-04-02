@@ -23,8 +23,8 @@ This repository uses GitHub Actions environment gates for workflow-driven deploy
 
 ## Suggested environment variables or secrets
 - `PRGX_RUNTIME_PROFILE`
-- `PRGX_AUDIT_WINDOW_HOURS` (integer hours, default: `24`)
-- `PRGX_MEDICAL_FINDINGS_PATH` (filesystem path, default: `.prgx-ag/evidence/medical_research_findings.json`)
+- `PRGX_AUDIT_WINDOW_HOURS`
+- `PRGX_MEDICAL_FINDINGS_PATH`
 - `PRGX_DEPLOY_TARGET`
 - Any future cloud credentials needed by downstream deployment jobs
 

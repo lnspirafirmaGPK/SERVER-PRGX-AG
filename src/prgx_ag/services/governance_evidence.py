@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
-import os
-import base64
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -11,6 +10,58 @@ from typing import Any
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _sign_payload(canonical_bytes: bytes) -> dict[str, Any]:
+    """Sign the canonical payload using RSA-PSS or ECDSA.
+
+    In production, this should load a configured private key and use
+    cryptography library for RSA-PSS or ECDSA signing.
+    For now, this is a placeholder that demonstrates the expected structure.
+    """
+    try:
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import padding, rsa
+        from cryptography.hazmat.backends import default_backend
+
+        # In production, load key from secure storage (e.g., env var, key vault)
+        # For now, generate an ephemeral key (NOT SECURE for production)
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+
+        signature_bytes = private_key.sign(
+            canonical_bytes,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+
+        public_key = private_key.public_key()
+        public_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode('utf-8')
+
+        return {
+            'algorithm': 'RSA-PSS-SHA256',
+            'signature': base64.b64encode(signature_bytes).decode('utf-8'),
+            'key_id': 'ephemeral-key',
+            'public_key': public_pem,
+        }
+    except ImportError:
+        # Fallback if cryptography library not available
+        # This maintains backward compatibility but is NOT a real signature
+        digest = hashlib.sha256(canonical_bytes).hexdigest()
+        return {
+            'algorithm': 'sha256',
+            'digest': digest,
+            'warning': 'cryptography library not available, using digest fallback',
+        }
 
 
 def _read_json(path: Path) -> Any:
@@ -41,67 +92,13 @@ def _read_audit_slice(audit_log: Path, *, hours: int) -> list[dict[str, Any]]:
             continue
         try:
             ts = datetime.fromisoformat(ts_raw.replace('Z', '+00:00'))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
         except ValueError:
             continue
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
         if ts >= cutoff:
             rows.append(payload)
     return rows
-
-
-def _resolve_safe_path(repo_root: Path, requested_path: str) -> Path:
-    root = repo_root.resolve()
-    candidate = (root / requested_path).resolve()
-    try:
-        candidate.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(f"Path escapes repository root: {requested_path}") from exc
-    return candidate
-
-
-def _sign_payload(canonical_payload: str) -> dict[str, str]:
-    key_data = os.getenv('PRGX_GOVERNANCE_PRIVATE_KEY_PEM', '').strip()
-    key_id = os.getenv('PRGX_GOVERNANCE_SIGNING_KEY_ID', 'configured-private-key')
-    if key_data:
-        try:
-            from cryptography.hazmat.primitives import hashes, serialization
-            from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
-        except Exception:
-            key_data = ''
-
-    if key_data:
-        private_key = serialization.load_pem_private_key(key_data.encode('utf-8'), password=None)
-        payload_bytes = canonical_payload.encode('utf-8')
-        algorithm = 'rsa-pss-sha256'
-
-        if isinstance(private_key, rsa.RSAPrivateKey):
-            signature = private_key.sign(
-                payload_bytes,
-                padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH),
-                hashes.SHA256(),
-            )
-        elif isinstance(private_key, ec.EllipticCurvePrivateKey):
-            signature = private_key.sign(payload_bytes, ec.ECDSA(hashes.SHA256()))
-            algorithm = 'ecdsa-sha256'
-        elif isinstance(private_key, ed25519.Ed25519PrivateKey):
-            signature = private_key.sign(payload_bytes)
-            algorithm = 'ed25519'
-        else:
-            raise ValueError('Unsupported signing key type')
-
-        return {
-            'algorithm': algorithm,
-            'value': base64.b64encode(signature).decode('ascii'),
-            'key_id': key_id,
-        }
-
-    digest = hashlib.sha256(canonical_payload.encode('utf-8')).hexdigest()
-    return {
-        'algorithm': 'sha256',
-        'value': digest,
-        'key_id': 'content-digest',
-    }
 
 
 def append_audit_event(audit_log: Path, *, event: str, actor: str, details: dict[str, Any]) -> None:
@@ -125,7 +122,12 @@ def create_signed_governance_evidence_bundle(
     profile_name: str,
 ) -> Path:
     audit_log = repo_root / '.prgx-ag/audit/audit_log.jsonl'
-    medical_path = _resolve_safe_path(repo_root, medical_findings_path)
+    candidate = (repo_root / medical_findings_path).resolve()
+    try:
+        candidate.relative_to(repo_root.resolve())
+        medical_path = candidate
+    except ValueError:
+        raise ValueError(f"medical_findings_path must be inside repo_root: {medical_findings_path}")
     evidence_dir = repo_root / '.prgx-ag/artifacts/compliance'
     evidence_dir.mkdir(parents=True, exist_ok=True)
 
@@ -145,9 +147,11 @@ def create_signed_governance_evidence_bundle(
         'compliance_statement': 'Governance evidence bundle generated from bounded PRGX-AG runtime records.',
     }
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    signature_data = _sign_payload(canonical.encode('utf-8'))
+
     signed_bundle = {
         **payload,
-        'signature': _sign_payload(canonical),
+        'signature': signature_data,
     }
 
     stamp = _utc_now().strftime('%Y%m%d-%H%M%S')

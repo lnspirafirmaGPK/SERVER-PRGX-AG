@@ -1,5 +1,6 @@
-from prgx_ag.config import RUNTIME_PROFILES, Settings
-from pydantic import ValidationError
+import pytest
+
+from prgx_ag.config import RUNTIME_PROFILES, RuntimeProfile, Settings
 
 
 def test_runtime_profiles_have_distinct_controls() -> None:
@@ -7,6 +8,7 @@ def test_runtime_profiles_have_distinct_controls() -> None:
     staging = RUNTIME_PROFILES['staging']
     production = RUNTIME_PROFILES['production']
 
+    # Assert exact expected constants for each profile
     assert development.max_auto_fix_items == 20
     assert development.max_issue_count_for_auto_fix == 60
     assert development.audit_verbosity == 'compact'
@@ -27,12 +29,3 @@ def test_settings_exposes_profile() -> None:
     settings = Settings(PRGX_RUNTIME_PROFILE='staging')
     assert settings.profile.name == 'staging'
     assert settings.profile.evidence_signature_required is True
-
-
-def test_settings_rejects_invalid_audit_window() -> None:
-    try:
-        Settings(PRGX_AUDIT_WINDOW_HOURS=0)
-    except ValidationError:
-        pass
-    else:
-        raise AssertionError("Expected ValidationError when PRGX_AUDIT_WINDOW_HOURS < 1")

@@ -82,29 +82,15 @@ class PRGXAGNexus:
         )
 
         if outcome.success:
-            fix_entries = payload.get("fixes", [])
-            fix_classes_from_plan: list[str] = []
-            rollback_hints_from_plan: list[str] = []
-            if isinstance(fix_entries, list):
-                for entry in fix_entries:
-                    if not isinstance(entry, dict):
-                        continue
-                    fix_class = str(entry.get("fix_class", "")).strip()
-                    if fix_class and fix_class not in fix_classes_from_plan:
-                        fix_classes_from_plan.append(fix_class)
-                    rollback_hint = str(entry.get("rollback_hint", "")).strip()
-                    if rollback_hint and rollback_hint not in rollback_hints_from_plan:
-                        rollback_hints_from_plan.append(rollback_hint)
-
             create_signed_governance_evidence_bundle(
                 self.repo_root,
                 audit_window_hours=self.settings.audit_window_hours,
                 fix_plan_metadata={
                     "envelope_id": outcome.envelope_id,
                     "fix_count": outcome.details.get("fix_count"),
-                    "fix_classes": outcome.details.get("fix_classes", fix_classes_from_plan),
+                    "fix_classes": outcome.details.get("fix_classes", []),
                     "verification_status": outcome.details.get("verification_status", "not-run"),
-                    "rollback_hints": outcome.details.get("rollback_hints", rollback_hints_from_plan),
+                    "rollback_hints": outcome.details.get("rollback_hints", []),
                 },
                 medical_findings_path=self.settings.medical_findings_path,
                 profile_name=self.settings.runtime_profile,
