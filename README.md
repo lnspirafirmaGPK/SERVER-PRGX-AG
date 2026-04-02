@@ -190,6 +190,9 @@ python -m prgx_ag.main --continuous --interval 10
 python -m prgx_ag.main --scan-only
 ```
 
+## ATR-MF Augmented Perception Architecture (TH)
+- ดูสเปกสถาปัตยกรรมและแผน production สำหรับแนวคิด Augmented Perception Layer ได้ที่ `ATR_MF_AUGMENTED_PERCEPTION_ARCHITECTURE_TH.md`
+
 ## Testing
 ```bash
 pytest
