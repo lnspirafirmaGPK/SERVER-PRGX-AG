@@ -154,9 +154,7 @@ def test_prgx3_non_actionable_report_does_not_publish_any_events(
 
         # The only subscribed event is ISSUE_REPORTED which happens upstream;
         # diplomat itself should publish nothing when not actionable
-        topics = [topic for topic, _ in bus.history]
-        assert EXECUTE_FIX not in topics
-
+        assert bus.history == []
     asyncio.run(_run())
 
 
